@@ -1,0 +1,200 @@
+
+ssh nvidia@$TEGRA
+
+#    create an apsync user:
+sudo useradd -s /bin/bash -m -U -G sudo,netdev,users,dialout,video apsync
+sudo passwd apsync # apsync
+
+# you can copy the whole statements below (up to the line with a bunch of # after the fi) into a terminal and it should work.
+# move all of the Jetson stuff to be under APSync:
+JETSON_STUFF_USER=ubuntu
+if [ -d "/home/nvidia" ]; then
+    JETSON_STUFF_USER=nvidia
+fi
+####################
+
+sudo rsync -aPH --delete /home/$JETSON_STUFF_USER/ /home/apsync
+sudo chown -R apsync.apsync /home/apsync
+pushd /home/$JETSON_STUFF_USER
+  sudo rm -rf cudnn nv-gie-repo-ubuntu1604-ga-cuda8.0-trt2.1-20170614_1-1_arm64.deb cuda-l4t /home/nvidia/OpenCV4Tegra
+popd
+
+logout
+
+############################################## After this you have to be logged in as apsync ########################################
+
+cd ~
+mkdir GitHub
+pushd GitHub
+git clone https://github.com/peterbarker/companion.git
+pushd companion/
+git checkout next-rpi
+pushd Nvidia_JTX1/Ubuntu
+sudo ./set-hostname   # reset the machine's hostname
+sudo apt-get autoremove -y # avoid repeated no-longer-required annoyance
+sudo ./change-autologin-user.sh &&&&&&&&&&&&&&&&&&&&&NEED TO FIX&&&&&&&&&&&&&&&&&
+sudo ./remove-unattended-upgrades #
+sudo ./ensure_rc_local.sh
+sudo ./disable_console.sh
+sudo reboot # ensure hostname correct / console disabling OK / autologin working
+
+############################################## The last instructions need a reboot before continuing ##################################
+
+ssh apsync@apsync
+pushd GitHub/companion/Nvidia_JTX1/Ubuntu
+%% time sudo -H -E ./2_install_packages.sh # 20m  &&&&&&&&&&& -H pip install --upgrade pip&&&&&
+time sudo -E ./install_niceties || echo "Failed" # 20s
+
+Sudo su
+echo "options bcmdhd op_mode=2" | tee -a /etc/modprobe.d/bcmdhd.conf
+echo 2 >/sys/module/bcmdhd/parameters/op_mode
+exit
+
+time sudo -E ./3_wifi_access_point.sh # 20s
+
+############################################# Up to here you should now have the access point working #################################
+
+sudo ./4_setup_log_rotation # instant
+time sudo -E ./6_setup_video.sh # 1m  This is optional
+time sudo -E ./8_setup_cmavnode.sh # ~4m
+time sudo -E ./setup_mavlink-router # ~2m Remember to change the mavlink_router.conf file to the right serial port 
+time sudo -E ./7_dflogger.sh # ~210s
+sudo ./5_setup_mavproxy.sh # instant
+&&&&&Error&&& time sudo -E ./setup-video-streaming # 11s  This is optional
+
+time sudo -E apt-get install -y libxml2-dev libxslt1.1 libxslt1-dev
+time sudo pip install future lxml # 4m &&&&& Not needed - Error &&&&&
+time sudo ./install_apweb # 2m
+
+Sudo Reboot
+
+############################################# This finishes APSync Setup ############################################################
+############################################# These are for testing that everything works ###########################################\
+
+Testing regime for new image:
+-----------------------------
+# make sure (USB?) ethernet is unplugged!
+
+
+# Check if AP exists
+
+# Connect to AP
+
+# ssh into device
+ssh apsync@10.0.1.128
+
+# Check "screen -list" includes mavlink-router, DataFlashLogger, cherrypy:
+screen -list
+
+screen -list
+There are screens on:
+	1754.cherrypy	(12/08/2017 03:00:54 AM)	(Detached)
+	1733.DataFlashLogger	(12/08/2017 03:00:54 AM)	(Detached)
+	1704.mavlink-router	(12/08/2017 03:00:54 AM)	(Detached)
+
+# Check APWeb is running:
+sudo screen -list
+There is a screen on:
+	1765.apweb	(12/08/2017 03:00:54 AM)	(Detached)
+
+# ensure mavproxy starts on the apsync image:
+mavproxy.py --master :14550 --source-system=56
+# make sure you can fetch parameters:
+param fetch
+param status
+
+# Can you connect using a GCS using the broadcast packets on port 14550?
+# on host machine:
+mavproxy.py --mav10 --master :14550 --source-system=89
+# make sure you can fetch parameters:
+param fetch
+
+# ensure you can connect multiple GCS at the same time!
+
+# make sure LOG_BACKEND_TYPE is 2
+# make sure dflogger is creating dataflash logs:
+# arm the vehicle *and turn the safety off*, then:
+watch "ls dflogger/dataflash -lt | head"
+
+
+# can you connect to to the AP using a mobile phone and/or tablet?
+
+# BEFORE testing the following, disable internet access on the phone!
+# Test Each of Tower on Android, QGC on Android, QGC on Linux, MP on Windows:
+ # can you connect to the vehicle?
+ # can you control the vehicle?
+ Test UDP port 5600 streaming works to:
+  QGC on Linux
+  QGC on Android
+  Tower on Android (need to change setting!)
+  Mission Planner on Windows
+
+# Video Streaming testing:
+ Use a web browser to connect on port 8000; make sure start/stop work
+
+
+# web interface testing
+# ! ENSURE NO GCS IS RUNNING BEFORE DOING THESE INTERFACE TESTS !
+# this testing script must be run through for:
+#   firefox
+#   chromium-browser
+#   edge
+  Ensure you get a response when connecting to http://10.0.1.128/
+  Click "Download DataFlash Logs"
+    Download a dataflash log
+    Ensure sizes match on download file and original
+      Check checksums on files match
+
+  Click "FileSystem Access"
+    Ensure you can download a file
+
+  Click "System Control" link
+   Change WiFi access point name and key
+   Reboot Device
+   Make sure you can connect to renamed AP
+
+  Click "System Control" link
+     Test "Reboot Flight Board"
+     Test "Reboot CC"
+
+  Click "System Status" link
+    Click "System" tab
+      Ensure values are updating
+      Adjust refresh rate
+        Ensure values are updating faster
+
+    Click "IMU" tab
+      Ensure graphs respond to flight controller movement
+      Ensure tables respond to flight controller movement
+
+    Click "Baro" tab
+      (n.b.) Rover doesn't supply Baro data
+      Ensure graphs respond to flight controller movement
+      Ensure tables respond to flight controller movement
+
+    Click "GPS" tab
+      Ensure table values are updating
+
+    Click "EKF" tab
+      Ensure values are updating
+
+    Click "Transmitter" tab
+      Ensure values are updating
+
+  Click "Calibration" link
+
+    Click "Accelerometer" tab
+      Click "Start Six Axis Accelerometer Calibration"
+        Should ge a message to place vehicle level
+      Ensure values for sensor state are updating
+
+    Click "Magnetometer" tab
+      Click "Start Magnetometer Calibration"
+        Should get a message, calibration started"
+      Ensure sensor state values are updating
+
+  Click "Flight Parameters" link
+    Change "Parameter Category" dropdown, ensure list of parameter is reduced
+    Add an entry into the "Search parameters" box, ensure list is filtered appopriately
+    Change a parameter value to something distinct
+    Reboot the flight controller and reload the page, ensure the parameter value has stuck (or use a GCS to check)
