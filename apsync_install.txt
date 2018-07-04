@@ -1,27 +1,28 @@
 
-ssh nvidia@$TEGRA
+Build instructions for APSync on Nvidia Jetson TX2.(Verified working with JetPack 3.2.1)
 
-#    create an apsync user:
+ssh -X nvidia@x.x.x.x
+
+#create apsync user:
 sudo useradd -s /bin/bash -m -U -G sudo,netdev,users,dialout,video apsync
 sudo passwd apsync # apsync
 
-# you can copy the whole statements below (up to the line with a bunch of # after the fi) into a terminal and it should work.
-# move all of the Jetson stuff to be under APSync:
+#move all of the Jetson stuff to APSync user account: (Run the following as single command)
 JETSON_STUFF_USER=ubuntu
 if [ -d "/home/nvidia" ]; then
     JETSON_STUFF_USER=nvidia
 fi
-####################
 
+#then:
 sudo rsync -aPH --delete /home/$JETSON_STUFF_USER/ /home/apsync
 sudo chown -R apsync.apsync /home/apsync
 pushd /home/$JETSON_STUFF_USER
-  sudo rm -rf cudnn nv-gie-repo-ubuntu1604-ga-cuda8.0-trt2.1-20170614_1-1_arm64.deb cuda-l4t /home/nvidia/OpenCV4Tegra
+sudo rm -rf cudnn nv-gie-repo-ubuntu1604-ga-cuda8.0-trt2.1-20170614_1-1_arm64.deb cuda-l4t /home/nvidia/OpenCV4Tegra
 popd
 
 logout
 
-############################################## After this you have to be logged in as apsync ########################################
+#Log in as apsync (ssh -X apsync@x.x.x.x)
 
 cd ~
 mkdir GitHub
@@ -32,49 +33,58 @@ git checkout next-rpi
 pushd Nvidia_JTX1/Ubuntu
 sudo ./set-hostname   # reset the machine's hostname
 sudo apt-get autoremove -y # avoid repeated no-longer-required annoyance
-sudo ./change-autologin-user.sh &&&&&&&&&&&&&&&&&&&&&NEED TO FIX&&&&&&&&&&&&&&&&&
-sudo ./remove-unattended-upgrades #
+sudo ./change-autologin-user.sh ???????????DOES NOT EXIST?????????????
+sudo ./remove-unattended-upgrades
 sudo ./ensure_rc_local.sh
 sudo ./disable_console.sh
 sudo reboot # ensure hostname correct / console disabling OK / autologin working
 
-############################################## The last instructions need a reboot before continuing ##################################
+#do not forget reboot before proceeding
 
-ssh apsync@apsync
+ssh apsync@x.x.x.x
 pushd GitHub/companion/Nvidia_JTX1/Ubuntu
-%% time sudo -H -E ./2_install_packages.sh # 20m  &&&&&&&&&&& -H pip install --upgrade pip&&&&&
-time sudo -E ./install_niceties || echo "Failed" # 20s
+sudo -H -E ./2_install_packages.sh # 20m
+sudo -H pip install --upgrade pip # if needed
+sudo -E ./install_niceties || echo "Failed" # 20s
 
 Sudo su
 echo "options bcmdhd op_mode=2" | tee -a /etc/modprobe.d/bcmdhd.conf
 echo 2 >/sys/module/bcmdhd/parameters/op_mode
 exit
 
-time sudo -E ./3_wifi_access_point.sh # 20s
+sudo -E ./3_wifi_access_point.sh # 20s
+sudo reboot
 
-############################################# Up to here you should now have the access point working #################################
+#access point should be visible upon boot
 
 sudo ./4_setup_log_rotation # instant
-time sudo -E ./6_setup_video.sh # 1m  This is optional
-time sudo -E ./8_setup_cmavnode.sh # ~4m
-time sudo -E ./setup_mavlink-router # ~2m Remember to change the mavlink_router.conf file to the right serial port 
-time sudo -E ./7_dflogger.sh # ~210s
+sudo -E ./6_setup_video.sh # 1m  This is optional
+sudo -E ./8_setup_cmavnode.sh # ~4m
+sudo -E ./setup_mavlink-router # ~2m
+sudo -E ./7_dflogger.sh # ~210s
 sudo ./5_setup_mavproxy.sh # instant
-&&&&&Error&&& time sudo -E ./setup-video-streaming # 11s  This is optional
+sudo -E ./setup-video-streaming # 11s  This is optional ????????dronekit 2.9.1 has requirement pymavlink==2.0.6, but you'll have pymavlink 2.2.10 which is incompatible?????????????????
 
-time sudo -E apt-get install -y libxml2-dev libxslt1.1 libxslt1-dev
-time sudo pip install future lxml # 4m &&&&& Not needed - Error &&&&&
-time sudo ./install_apweb # 2m
+sudo -E apt-get install -y libxml2-dev libxslt1.1 libxslt1-dev
+sudo ./install_apweb # 2m
 
-Sudo Reboot
+sudo reboot
 
 ############################################# This finishes APSync Setup ############################################################
-############################################# These are for testing that everything works ###########################################\
+
+#Baud connection to autopilot is set to 1150000
+To change, edit: /start_mavlink-router.conf
+
+#If using the NVIDIA dev board use UART J17 for telemetry connection to autopilot.
+
+Edit: /start_mavlink-router.conf
+Device = /dev/ttyTHS2
+
+########################################### These are for testing that everything works ###########################################\
 
 Testing regime for new image:
 -----------------------------
 # make sure (USB?) ethernet is unplugged!
-
 
 # Check if AP exists
 
@@ -195,6 +205,6 @@ watch "ls dflogger/dataflash -lt | head"
 
   Click "Flight Parameters" link
     Change "Parameter Category" dropdown, ensure list of parameter is reduced
-    Add an entry into the "Search parameters" box, ensure list is filtered appopriately
+    Add an entry into the "Search parameters" box, ensure list is filtered appropriately
     Change a parameter value to something distinct
     Reboot the flight controller and reload the page, ensure the parameter value has stuck (or use a GCS to check)
