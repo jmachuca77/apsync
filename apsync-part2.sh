@@ -10,12 +10,13 @@ set -x
 
 . config.env
 
-pushd /home/@NORMAL_USER
+pushd /home/$NORMAL_USER
 
 sudo -u $NORMAL_USER -H bash <<'EOF'
 set -e
 set -x
 
+#To do! find a way to only create dir if its not there and remove only the companion repo!
 rm -rf GitHub
 mkdir GitHub
 pushd GitHub
