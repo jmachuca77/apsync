@@ -10,9 +10,8 @@ set -x
 
 . config.env
 
-
-ssh apsync@apsync
-pushd GitHub/companion/Nvidia_JTX1/Ubuntu
+#ssh apsync@apsync
+pushd /home/$NORMAL_USER/GitHub/companion/Nvidia_JTX1/Ubuntu
 time sudo -E ./2_install_packages.sh # 20m
 time sudo -E ./install_niceties || echo "Failed" # 20s
 echo "options bcmdhd op_mode=2" | tee -a /etc/modprobe.d/bcmdhd.conf
