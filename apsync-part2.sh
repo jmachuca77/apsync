@@ -17,12 +17,15 @@ set -e
 set -x
 
 #To do! find a way to only create dir if its not there and remove only the companion repo!
-rm -rf GitHub
-mkdir GitHub
+#rm -rf GitHub
+#mkdir GitHub
 pushd GitHub
 git clone https://github.com/peterbarker/companion.git
 pushd companion/
 git checkout next-rpi
+pushd Nvidia_JTX1/Ubuntu/
+rm config.env
+cp /home/$NORMAL_USER/GitHub/apsync/config.env /home/$NORMAL_USER/GitHub/companion/Nvidia_JTX1/Ubuntu/config.env
 
 EOF
 
