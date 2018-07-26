@@ -10,6 +10,7 @@ set -x
 
 . config.env
 
+pushd /home/$NORMAL_USER/GitHub/companion/Nvidia_JTX1/Ubuntu
 ./4_setup_log_rotation # instant
 time ./6_setup_video.sh # 1m  This is optional
 time ./8_setup_cmavnode.sh # ~4m
