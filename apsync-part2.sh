@@ -25,7 +25,7 @@ pushd companion/
 git checkout next-rpi
 pushd Nvidia_JTX1/Ubuntu/
 rm config.env
-cp /home/$NORMAL_USER/GitHub/apsync/config.env /home/$NORMAL_USER/GitHub/companion/Nvidia_JTX1/Ubuntu/config.env
+cp ~/GitHub/apsync/config.env ~/GitHub/companion/Nvidia_JTX1/Ubuntu/config.env
 
 EOF
 
